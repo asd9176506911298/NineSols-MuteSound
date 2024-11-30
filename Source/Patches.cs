@@ -1,19 +1,38 @@
 ﻿using HarmonyLib;
+using NineSolsAPI;
+using UnityEngine;
 
-namespace ExampleMod;
+namespace MuteSound;
 
 [HarmonyPatch]
 public class Patches {
 
-    // Patches are powerful. They can hook into other methods, prevent them from runnning,
-    // change parameters and inject custom code.
-    // Make sure to use them only when necessary and keep compatibility with other mods in mind.
-    // Documentation on how to patch can be found in the harmony docs: https://harmony.pardeike.net/articles/patching.html
-    [HarmonyPatch(typeof(Player), nameof(Player.SetStoryWalk))]
+    // Patch for SoundManager.PlaySound to mute specified sounds
+    [HarmonyPatch(typeof(SoundManager), nameof(SoundManager.PlaySound))]
     [HarmonyPrefix]
-    private static bool PatchStoryWalk(ref float walkModifier) {
-        walkModifier = 1.0f;
+    private static bool PatchPlaySound(
+        SoundManager __instance,
+        string soundName,
+        GameObject soundEmitter,
+        AkCallbackManager.EventCallback endCallback = null) {
 
-        return true; // the original method should be executed
+        // Toast for all sound attempts if enabled
+        if (MuteSound.Instance.isToast.Value) {
+            ToastManager.Toast($"Play sound: {soundName}");
+        }
+
+        // If the sound is in the mute set
+        if (MuteSound.Instance.muteSoundSet.Contains(soundName)) {
+            // Toast for muted sounds if enabled
+            if (MuteSound.Instance.isToastMute.Value) {
+                ToastManager.Toast($"Muted sound: {soundName}");
+            }
+
+            // Mute sound if muting is enabled
+            return !MuteSound.Instance.isMute.Value;
+        }
+
+        // Allow sound to play
+        return true;
     }
 }

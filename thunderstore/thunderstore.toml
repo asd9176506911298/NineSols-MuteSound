@@ -2,11 +2,11 @@
 schemaVersion = "0.0.1"
 
 [package]
-namespace = "yournamespace"
-name = "YourModName"
+namespace = "MuteSound"
+name = "MuteSound"
 versionNumber = "0.1.0"
-description = "your mod description"
-websiteUrl = "link to the git repo"
+description = "Mute Specify Sound"
+websiteUrl = "https://github.com/asd9176506911298/NineSols-MuteSound"
 containsNsfwContent = false
 
 [package.dependencies]

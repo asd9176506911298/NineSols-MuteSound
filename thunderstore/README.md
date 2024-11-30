@@ -1,4 +1,5 @@
-# Nine Sols Example Mod
+# MuteSound
 
-Write a description of your mod here, it will be displayed on thunderstore.
-Remember to update the icon.png to something representing your mod.
+# Feature
+- Mute Certain Name Sound
+- CharSFX_Lotus_Revive, IntSFX_LotusClose Mute root revive sound and leave root sound
