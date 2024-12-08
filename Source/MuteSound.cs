@@ -41,9 +41,12 @@ namespace MuteSound {
             // Configuration options
             isMute = Config.Bind("Enable", "Mute Sound", false, "Mute specific sounds by name");
             isReplaceSound = Config.Bind("Enable", "Replace Sound", false, "Replace specific sounds by name");
-            isToast = Config.Bind("", "Toast Play SoundName", false, "Show toast messages for sound playback");
-            isToastMute = Config.Bind("", "Toast Mute SoundName", false, "Show mute sound playback");
-            isToastReplace = Config.Bind("", "Toast Replace", false, "Show replace sound");
+            isToast = Config.Bind("", "Toast Play SoundName", false, new ConfigDescription("Show toast messages for sound playback", null,
+                        new ConfigurationManagerAttributes { Order = 10 }));
+            isToastMute = Config.Bind("", "Toast Mute SoundName", false, new ConfigDescription("Show toast mute sound playback", null,
+                        new ConfigurationManagerAttributes { Order = 9 }));
+
+            isToastReplace = Config.Bind("", "Toast Replace SoundName", false, "Show replace sound");
 
             // Initialize mute sound set
             LoadMuteSoundNamesFromFile();
