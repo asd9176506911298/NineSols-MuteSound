@@ -33,8 +33,8 @@ The `replaceSoundNames.json`
 
 ```json
 {
-  "Player_SFX_Dash": "E:/Download/sound1.mp3",
-  "Player_SFX_ReflectMove": "E:/Download/sound2.mp3"
+  "Player_SFX_Dash": "E:\\Download\\sound1.mp3",
+  "Player_SFX_ReflectMove": "E:\\Download\\sound2.mp3"
 }
 ```
 or you can put file in BepInEx\config
