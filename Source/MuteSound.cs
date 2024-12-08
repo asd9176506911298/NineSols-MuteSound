@@ -59,7 +59,7 @@ namespace MuteSound {
 
             // Set up file watchers to monitor changes
             SetUpFileWatchers();
-
+            
             Log.Info($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
         }
 
@@ -99,16 +99,30 @@ namespace MuteSound {
                 try {
                     string jsonContent = File.ReadAllText(filePath);
                     replaceSoundNames = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonContent) ?? new Dictionary<string, string>();
-                    Log.Info("Successfully loaded replace sound names from file.");
+
+                    // Display individual key-value pairs as toasts
+                    DisplayReplaceSoundToasts();
+
+                    // Summary toast
+                    ToastManager.Toast($"Successfully loaded {replaceSoundNames.Count} replace sound names from file.");
                 } catch (Exception ex) {
                     Log.Error("Failed to load replaceSoundNames from file: " + ex.Message);
                     replaceSoundNames = new Dictionary<string, string>();
                 }
             } else {
-                Log.Warning("replaceSoundNames.json file not found. Using default empty mapping.");
+                // If the file doesn't exist, create it with an empty structure
+                Log.Warning("replaceSoundNames.json file not found. Creating a new file.");
                 replaceSoundNames = new Dictionary<string, string>();
+                SaveReplaceSoundNamesToFile(filePath);
             }
         }
+
+        private void DisplayReplaceSoundToasts() {
+            foreach (var pair in replaceSoundNames) {
+                ToastManager.Toast($"Replace \"{pair.Key}\" to \"{pair.Value}\"");
+            }
+        }
+
 
         private void LoadMuteSoundNamesFromFile() {
             string filePath = Path.Combine(Paths.ConfigPath, "muteSoundNames.json");
@@ -119,15 +133,54 @@ namespace MuteSound {
                     var loadedMuteNames = JsonConvert.DeserializeObject<List<string>>(jsonContent);
                     muteSoundSet = new HashSet<string>(loadedMuteNames ?? new List<string>());
                     Log.Info("Successfully loaded mute sound names from file.");
+
+                    // Display individual sound toasts and summary toast
+                    DisplayIndividualSounds();
+                    DisplayMuteSoundSummary();
                 } catch (Exception ex) {
                     Log.Error("Failed to load muteSoundNames from file: " + ex.Message);
                     muteSoundSet = new HashSet<string>();
                 }
             } else {
-                Log.Warning("muteSoundNames.json file not found. Using default empty set.");
+                // If the file doesn't exist, create it with an empty structure
+                Log.Warning("muteSoundNames.json file not found. Creating a new file.");
                 muteSoundSet = new HashSet<string>();
+                SaveMuteSoundNamesToFile(filePath);
             }
         }
+
+        private void DisplayIndividualSounds() {
+            foreach (var soundName in muteSoundSet) {
+                ToastManager.Toast(soundName); // Toast each sound individually
+            }
+        }
+
+        private void DisplayMuteSoundSummary() {
+            string message = $"Loaded {muteSoundSet.Count} mute sound names.";
+            ToastManager.Toast(message); // Display a summary toast
+        }
+
+        // Save methods to write default empty JSON content to the files
+        private void SaveReplaceSoundNamesToFile(string filePath) {
+            try {
+                string jsonContent = JsonConvert.SerializeObject(replaceSoundNames, Formatting.Indented);
+                File.WriteAllText(filePath, jsonContent);
+                Log.Info("Successfully created replaceSoundNames.json.");
+            } catch (Exception ex) {
+                Log.Error("Failed to create replaceSoundNames.json: " + ex.Message);
+            }
+        }
+
+        private void SaveMuteSoundNamesToFile(string filePath) {
+            try {
+                string jsonContent = JsonConvert.SerializeObject(new List<string>(), Formatting.Indented);
+                File.WriteAllText(filePath, jsonContent);
+                Log.Info("Successfully created muteSoundNames.json.");
+            } catch (Exception ex) {
+                Log.Error("Failed to create muteSoundNames.json: " + ex.Message);
+            }
+        }
+
 
         public void PlayMP3(string filePath) {
             if (!File.Exists(filePath)) {
