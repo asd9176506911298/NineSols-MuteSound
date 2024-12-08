@@ -4,8 +4,8 @@ schemaVersion = "0.0.1"
 [package]
 namespace = "MuteSound"
 name = "MuteSound"
-versionNumber = "0.1.1"
-description = "Mute Specify Sound"
+versionNumber = "0.1.2"
+description = "Mute/Replace Specify Sound"
 websiteUrl = "https://github.com/asd9176506911298/NineSols-MuteSound"
 containsNsfwContent = false
 

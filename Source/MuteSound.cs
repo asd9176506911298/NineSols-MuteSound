@@ -154,41 +154,77 @@ namespace MuteSound {
         // Save methods to write default empty JSON content to the files
         private void SaveReplaceSoundNamesToFile(string filePath) {
             try {
+                // Ensure replaceSoundNames is populated with sound name and path pairs
+                if (replaceSoundNames.Count == 0) {
+                    // Example data, can be replaced with actual logic to populate the dictionary
+                    replaceSoundNames = new Dictionary<string, string> {
+                { "exampleSound1", "yourmp3Path" },
+                { "exampleSound2", "yourmp3Path" }
+            };
+                }
+
+                // Serialize the dictionary to JSON with indented formatting
                 string jsonContent = JsonConvert.SerializeObject(replaceSoundNames, Formatting.Indented);
+
+                // Write the JSON content to the file
                 File.WriteAllText(filePath, jsonContent);
+
+                // Log success message
                 Log.Info("Successfully created replaceSoundNames.json.");
             } catch (Exception ex) {
+                // Log error message if something goes wrong
                 Log.Error("Failed to create replaceSoundNames.json: " + ex.Message);
             }
         }
 
+
         private void SaveMuteSoundNamesToFile(string filePath) {
             try {
-                string jsonContent = JsonConvert.SerializeObject(new List<string>(), Formatting.Indented);
+                // Create a list of sounds you want to save
+                List<string> muteSounds = new List<string> { "exampleSound1", "exampleSound2" };
+
+                // Serialize the list to JSON with indented formatting
+                string jsonContent = JsonConvert.SerializeObject(muteSounds, Formatting.Indented);
+
+                // Write the JSON content to the file
                 File.WriteAllText(filePath, jsonContent);
+
+                // Log success message
                 Log.Info("Successfully created muteSoundNames.json.");
             } catch (Exception ex) {
+                // Log error message if something goes wrong
                 Log.Error("Failed to create muteSoundNames.json: " + ex.Message);
             }
         }
 
+
         public async void PlaySoundAsync(string filePath) {
             try {
-                string extension = Path.GetExtension(filePath).ToLower();
+                // Resolve the full path based on BepInEx config folder
+                string fullPath = Path.Combine(Paths.ConfigPath, filePath); // Assuming filePath is relative to config
+
+                // Check if the file exists at the resolved path
+                if (!File.Exists(fullPath)) {
+                    ToastManager.Toast($"Could not find file \"{fullPath}\"");
+                    return; // Early exit if file doesn't exist
+                }
+
+                string extension = Path.GetExtension(fullPath).ToLower();
 
                 if (extension == ".mp3") {
                     // Play MP3 file
-                    await PlayMp3(filePath);
+                    await PlayMp3(fullPath);
                 } else if (extension == ".wav") {
                     // Play WAV file
-                    await PlayWav(filePath);
+                    await PlayWav(fullPath);
                 } else {
-                    Log.Error($"Unsupported file format: {filePath}");
+                    Log.Error($"Unsupported file format: {fullPath}");
                 }
             } catch (Exception ex) {
                 Log.Error($"Error playing sound file {filePath}: {ex.Message}");
             }
         }
+
 
         private async Task PlayMp3(string filePath) {
             using (var reader = new Mp3FileReader(filePath))
