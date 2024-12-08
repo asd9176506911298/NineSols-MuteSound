@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using NineSolsAPI;
+using System.IO;
 using UnityEngine;
 
 namespace MuteSound;
@@ -24,11 +25,19 @@ public class Patches {
         if (MuteSound.Instance.isReplaceSound.Value) {
             if (MuteSound.Instance.replaceSoundNames.ContainsKey(soundName)) {
                 string mp3Path = MuteSound.Instance.replaceSoundNames[soundName];
+
+                // Extract the filename from the full path
+                string mp3FileName = Path.GetFileName(mp3Path);
+
                 MuteSound.Instance.PlayMP3(mp3Path);
+                if(MuteSound.Instance.isToastReplace.Value)
+                    ToastManager.Toast($"Replace {soundName} to {mp3FileName}");  // Use filename only in the toast
+
                 return false;
             }
         }
-        
+
+
         // If the sound is in the mute set
         if (MuteSound.Instance.muteSoundSet.Contains(soundName)) {
             // Toast for muted sounds if enabled

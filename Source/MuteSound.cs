@@ -19,8 +19,9 @@ namespace MuteSound {
         public ConfigEntry<bool> isMute = null!;
         public ConfigEntry<bool> isToast = null!;
         public ConfigEntry<bool> isToastMute = null!;
-        public ConfigEntry<string> muteSoundNames = null!;
+        public ConfigEntry<bool> isToastReplace = null!;
         public ConfigEntry<bool> isReplaceSound = null!;
+
 
         private WaveOutEvent waveOut;
         private Mp3FileReader mp3FileReader;
@@ -28,6 +29,9 @@ namespace MuteSound {
         public HashSet<string> muteSoundSet = new(); // Store sound names for fast lookups
         public Dictionary<string, string> replaceSoundNames = new(); // Sound names to MP3 paths mapping
         private Harmony harmony = null!;
+
+        private FileSystemWatcher replaceSoundFileWatcher; // Watch for replace sound file changes
+        private FileSystemWatcher muteSoundFileWatcher; // Watch for mute sound file changes
 
         private void Awake() {
             Instance = this;
@@ -38,25 +42,56 @@ namespace MuteSound {
 
             // Configuration options
             isMute = Config.Bind("Enable", "Mute Sound", false, "Mute specific sounds by name");
+
+            isReplaceSound = Config.Bind("Enable", "Replace Sound", false, new ConfigDescription("Replace specific sounds by name", null,
+                        new ConfigurationManagerAttributes { Order = 1 }));
+
             isToast = Config.Bind("", "Toast Play SoundName", false, new ConfigDescription("Show toast messages for sound playback", null,
                         new ConfigurationManagerAttributes { Order = 2 }));
             isToastMute = Config.Bind("", "Toast Mute SoundName", false, new ConfigDescription("Show mute sound playback", null,
                         new ConfigurationManagerAttributes { Order = 1 }));
 
-            isReplaceSound = Config.Bind("", "Enable Replace Sound", false, new ConfigDescription("Replace ", null,
+            isToastReplace = Config.Bind("", "Toast Replace", false, new ConfigDescription("Show replace sound", null,
                         new ConfigurationManagerAttributes { Order = 1 }));
 
-            muteSoundNames = Config.Bind("Filter", "MuteSoundNames", "", "Comma-separated list of sound names to mute (e.g., sound1,sound2,sound3)");
 
             // Initialize mute sound set
-            UpdateMuteSoundSet();
-
+            LoadMuteSoundNamesFromFile();
             LoadReplaceSoundNamesFromFile();
 
-            // Listen for changes to mute sound names
-            muteSoundNames.SettingChanged += (s, e) => OnMuteSoundNamesChanged();
+            // Set up file watchers to monitor changes
+            SetUpFileWatchers();
 
             Log.Info($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
+        }
+
+        private void SetUpFileWatchers() {
+            string replaceSoundFilePath = Path.Combine(Paths.ConfigPath, "replaceSoundNames.json");
+            string muteSoundFilePath = Path.Combine(Paths.ConfigPath, "muteSoundNames.json");
+
+            // Watch for changes in the replaceSoundNames file
+            replaceSoundFileWatcher = new FileSystemWatcher(Path.GetDirectoryName(replaceSoundFilePath)!, "replaceSoundNames.json") {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size
+            };
+            replaceSoundFileWatcher.Changed += (sender, e) => {
+                if (e.ChangeType == WatcherChangeTypes.Changed) {
+                    Log.Info("replaceSoundNames.json file has changed. Reloading...");
+                    LoadReplaceSoundNamesFromFile();
+                }
+            };
+            replaceSoundFileWatcher.EnableRaisingEvents = true;
+
+            // Watch for changes in the muteSoundNames file
+            muteSoundFileWatcher = new FileSystemWatcher(Path.GetDirectoryName(muteSoundFilePath)!, "muteSoundNames.json") {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size
+            };
+            muteSoundFileWatcher.Changed += (sender, e) => {
+                if (e.ChangeType == WatcherChangeTypes.Changed) {
+                    Log.Info("muteSoundNames.json file has changed. Reloading...");
+                    LoadMuteSoundNamesFromFile();
+                }
+            };
+            muteSoundFileWatcher.EnableRaisingEvents = true;
         }
 
         private void LoadReplaceSoundNamesFromFile() {
@@ -77,19 +112,28 @@ namespace MuteSound {
             }
         }
 
-        private void SaveReplaceSoundNames() {
-            try {
-                string jsonContent = JsonConvert.SerializeObject(replaceSoundNames, Formatting.Indented);
-                File.WriteAllText(Path.Combine(Paths.ConfigPath, "replaceSoundNames.json"), jsonContent);
-                Log.Info("Successfully saved replace sound names to file.");
-            } catch (Exception ex) {
-                Log.Error("Failed to save replaceSoundNames to file: " + ex.Message);
+        private void LoadMuteSoundNamesFromFile() {
+            string filePath = Path.Combine(Paths.ConfigPath, "muteSoundNames.json");
+
+            if (File.Exists(filePath)) {
+                try {
+                    string jsonContent = File.ReadAllText(filePath);
+                    var loadedMuteNames = JsonConvert.DeserializeObject<List<string>>(jsonContent);
+                    muteSoundSet = new HashSet<string>(loadedMuteNames ?? new List<string>());
+                    Log.Info("Successfully loaded mute sound names from file.");
+                } catch (Exception ex) {
+                    Log.Error("Failed to load muteSoundNames from file: " + ex.Message);
+                    muteSoundSet = new HashSet<string>();
+                }
+            } else {
+                Log.Warning("muteSoundNames.json file not found. Using default empty set.");
+                muteSoundSet = new HashSet<string>();
             }
         }
 
         public void PlayMP3(string filePath) {
             if (!File.Exists(filePath)) {
-                ToastManager.Toast("MP3 file not found.");
+                ToastManager.Toast($"MP3 file not found. path:{filePath}");
                 return;
             }
 
@@ -99,9 +143,9 @@ namespace MuteSound {
                 waveOut.Init(mp3FileReader);
                 AdjustVolume();
                 waveOut.Play();
-                ToastManager.Toast("Playing MP3: " + filePath);
+                //ToastManager.Toast("Playing MP3: " + filePath);
             } catch (Exception ex) {
-                ToastManager.Toast("Error playing MP3: " + ex.Message);
+                Log.Error("Error playing MP3: " + ex.Message);
             }
         }
 
@@ -113,21 +157,14 @@ namespace MuteSound {
             waveOut.Volume = finalVolume;
         }
 
-        private void UpdateMuteSoundSet() {
-            muteSoundSet = muteSoundNames.Value
-                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(name => name.Trim())
-                .ToHashSet();
-        }
-
-        private void OnMuteSoundNamesChanged() {
-            UpdateMuteSoundSet();
-        }
-
         private void OnDestroy() {
             harmony.UnpatchSelf();
             waveOut?.Stop();
             mp3FileReader?.Dispose();
+
+            // Dispose of file watchers
+            replaceSoundFileWatcher?.Dispose();
+            muteSoundFileWatcher?.Dispose();
         }
     }
 }
