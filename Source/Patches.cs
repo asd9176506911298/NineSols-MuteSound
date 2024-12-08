@@ -11,16 +11,24 @@ public class Patches {
     [HarmonyPatch(typeof(SoundManager), nameof(SoundManager.PlaySound))]
     [HarmonyPrefix]
     private static bool PatchPlaySound(
-        SoundManager __instance,
-        string soundName,
-        GameObject soundEmitter,
-        AkCallbackManager.EventCallback endCallback = null) {
+    SoundManager __instance,
+    string soundName,
+    GameObject soundEmitter,
+    AkCallbackManager.EventCallback endCallback = null) {
 
         // Toast for all sound attempts if enabled
         if (MuteSound.Instance.isToast.Value) {
             ToastManager.Toast($"Play sound: {soundName}");
         }
 
+        if (MuteSound.Instance.isReplaceSound.Value) {
+            if (MuteSound.Instance.replaceSoundNames.ContainsKey(soundName)) {
+                string mp3Path = MuteSound.Instance.replaceSoundNames[soundName];
+                MuteSound.Instance.PlayMP3(mp3Path);
+                return false;
+            }
+        }
+        
         // If the sound is in the mute set
         if (MuteSound.Instance.muteSoundSet.Contains(soundName)) {
             // Toast for muted sounds if enabled
