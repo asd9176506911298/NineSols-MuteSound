@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace MuteSound {
@@ -19,7 +20,6 @@ namespace MuteSound {
         public ConfigEntry<bool> isToastMute = null!;
         public ConfigEntry<bool> isToastReplace = null!;
         public ConfigEntry<bool> isReplaceSound = null!;
-
 
         private WaveOutEvent waveOut;
         private Mp3FileReader mp3FileReader;
@@ -40,18 +40,10 @@ namespace MuteSound {
 
             // Configuration options
             isMute = Config.Bind("Enable", "Mute Sound", false, "Mute specific sounds by name");
-
-            isReplaceSound = Config.Bind("Enable", "Replace Sound", false, new ConfigDescription("Replace specific sounds by name", null,
-                        new ConfigurationManagerAttributes { Order = 1 }));
-
-            isToast = Config.Bind("", "Toast Play SoundName", false, new ConfigDescription("Show toast messages for sound playback", null,
-                        new ConfigurationManagerAttributes { Order = 2 }));
-            isToastMute = Config.Bind("", "Toast Mute SoundName", false, new ConfigDescription("Show mute sound playback", null,
-                        new ConfigurationManagerAttributes { Order = 1 }));
-
-            isToastReplace = Config.Bind("", "Toast Replace", false, new ConfigDescription("Show replace sound", null,
-                        new ConfigurationManagerAttributes { Order = 1 }));
-
+            isReplaceSound = Config.Bind("Enable", "Replace Sound", false, "Replace specific sounds by name");
+            isToast = Config.Bind("", "Toast Play SoundName", false, "Show toast messages for sound playback");
+            isToastMute = Config.Bind("", "Toast Mute SoundName", false, "Show mute sound playback");
+            isToastReplace = Config.Bind("", "Toast Replace", false, "Show replace sound");
 
             // Initialize mute sound set
             LoadMuteSoundNamesFromFile();
@@ -59,7 +51,7 @@ namespace MuteSound {
 
             // Set up file watchers to monitor changes
             SetUpFileWatchers();
-            
+
             Log.Info($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
         }
 
@@ -123,7 +115,6 @@ namespace MuteSound {
             }
         }
 
-
         private void LoadMuteSoundNamesFromFile() {
             string filePath = Path.Combine(Paths.ConfigPath, "muteSoundNames.json");
 
@@ -181,22 +172,45 @@ namespace MuteSound {
             }
         }
 
-
-        public void PlayMP3(string filePath) {
-            if (!File.Exists(filePath)) {
-                ToastManager.Toast($"MP3 file not found. path:{filePath}");
-                return;
-            }
-
+        public async void PlaySoundAsync(string filePath) {
             try {
-                mp3FileReader = new Mp3FileReader(filePath);
-                waveOut = new WaveOutEvent();
-                waveOut.Init(mp3FileReader);
+                string extension = Path.GetExtension(filePath).ToLower();
+
+                if (extension == ".mp3") {
+                    // Play MP3 file
+                    await PlayMp3(filePath);
+                } else if (extension == ".wav") {
+                    // Play WAV file
+                    await PlayWav(filePath);
+                } else {
+                    Log.Error($"Unsupported file format: {filePath}");
+                }
+            } catch (Exception ex) {
+                Log.Error($"Error playing sound file {filePath}: {ex.Message}");
+            }
+        }
+
+        private async Task PlayMp3(string filePath) {
+            using (var reader = new Mp3FileReader(filePath))
+            using (waveOut = new WaveOutEvent()) {
+                waveOut.Init(reader);
                 AdjustVolume();
                 waveOut.Play();
-                //ToastManager.Toast("Playing MP3: " + filePath);
-            } catch (Exception ex) {
-                Log.Error("Error playing MP3: " + ex.Message);
+                while (waveOut.PlaybackState == PlaybackState.Playing) {
+                    await Task.Delay(100);
+                }
+            }
+        }
+
+        private async Task PlayWav(string filePath) {
+            using (var reader = new WaveFileReader(filePath))
+            using (waveOut = new WaveOutEvent()) {
+                waveOut.Init(reader);
+                AdjustVolume();
+                waveOut.Play();
+                while (waveOut.PlaybackState == PlaybackState.Playing) {
+                    await Task.Delay(100);
+                }
             }
         }
 

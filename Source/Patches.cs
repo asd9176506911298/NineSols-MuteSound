@@ -26,7 +26,7 @@ public class Patches {
             if (MuteSound.Instance.replaceSoundNames.ContainsKey(soundName)) {
                 string mp3Path = MuteSound.Instance.replaceSoundNames[soundName];
 
-                MuteSound.Instance.PlayMP3(mp3Path);
+                MuteSound.Instance.PlaySoundAsync(mp3Path);
                 if (MuteSound.Instance.isToastReplace.Value) {
                     string mp3FileName = Path.GetFileName(mp3Path);
                     ToastManager.Toast($"Replace \"{soundName}\" to \"{mp3FileName}\"");  // Show only the filename in the toast
